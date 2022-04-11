@@ -1,0 +1,26 @@
+---
+name: Notify Discussion to Slack
+on:
+  discussion:
+    types:
+    - created
+    - labeled
+    - answered
+  discussion_comment:
+    types:
+    - created
+permissions:
+  contents: read
+  discussions: read
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: aquaproj/aqua-installer@v1.0.0
+      with:
+        aqua_version: v1.3.0
+    - run: discussion-slack-notifier
+      env:
+        SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        GITHUB_TOKEN: ${{ github.token }}
