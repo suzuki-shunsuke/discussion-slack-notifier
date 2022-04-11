@@ -143,7 +143,10 @@ func (ctrl *Controller) listAllChannels(ctx context.Context, cfg *config.Config)
 
 func (ctrl *Controller) notify(ctx context.Context, slackChannel string, opts ...slack.MsgOption) error {
 	_, _, err := ctrl.slack.PostMessageContext(ctx, slackChannel, opts...)
-	return fmt.Errorf("post a message to Slack: %w", err)
+	if err != nil {
+		return fmt.Errorf("post a message to Slack: %w", err)
+	}
+	return nil
 }
 
 func (ctrl *Controller) notifyChannels(ctx context.Context, slackChannels *util.StrSet, opts ...slack.MsgOption) error {
