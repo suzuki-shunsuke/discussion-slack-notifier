@@ -30,5 +30,5 @@ func (runner *Runner) Run(ctx context.Context, args ...string) error {
 		ConfigPath:  "discussion-slack-notifier.yaml",
 	}
 	ctrl := controller.InitializeController(ctx, param)
-	return ctrl.Run(ctx, param)
+	return ctrl.Run(ctx, param) //nolint:wrapcheck
 }

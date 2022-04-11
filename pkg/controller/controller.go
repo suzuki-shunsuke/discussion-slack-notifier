@@ -63,10 +63,7 @@ func (ctrl *Controller) Run(ctx context.Context, param *input.Param) error {
 		return err
 	}
 
-	slackChannelNames, err := ctrl.listTargetChannels(ctx, cfg, payload, labels)
-	if err != nil {
-		return err
-	}
+	slackChannelNames := ctrl.listTargetChannels(ctx, cfg, payload, labels)
 
 	if slackChannelNames.Len() == 0 {
 		logrus.Info("No notification is sent")
@@ -89,7 +86,7 @@ func (ctrl *Controller) Run(ctx context.Context, param *input.Param) error {
 	return nil
 }
 
-func (ctrl *Controller) getMessage(payload *github.DiscussionEvent) (string, error) {
+func (ctrl *Controller) getMessage(payload *github.DiscussionEvent) (string, error) { //nolint:unparam
 	discussion := payload.GetDiscussion()
 	txt := fmt.Sprintf(`# %s
 
@@ -98,7 +95,7 @@ Category: %s`, discussion.GetTitle(), discussion.GetDiscussionCategory().GetName
 }
 
 func (ctrl *Controller) readConfig(p string, cfg *config.Config) error {
-	return ctrl.cfgReader.Read(p, cfg)
+	return ctrl.cfgReader.Read(p, cfg) //nolint:wrapcheck
 }
 
 func (ctrl *Controller) listChannelIDs(chNames *util.StrSet, chMap map[string]string) *util.StrSet {
@@ -115,14 +112,14 @@ func (ctrl *Controller) listChannelIDs(chNames *util.StrSet, chMap map[string]st
 }
 
 func (ctrl *Controller) readPayload(p string, payload *github.DiscussionEvent) error {
-	return ctrl.payloadReader.Read(p, payload)
+	return ctrl.payloadReader.Read(p, payload) //nolint:wrapcheck
 }
 
 func (ctrl *Controller) listLabels(ctx context.Context, owner, repo string, discussID int) (*util.StrSet, error) {
-	return ctrl.github.ListDiscussionLabels(ctx, owner, repo, discussID)
+	return ctrl.github.ListDiscussionLabels(ctx, owner, repo, discussID) //nolint:wrapcheck
 }
 
-func (ctrl *Controller) listTargetChannels(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) (*util.StrSet, error) {
+func (ctrl *Controller) listTargetChannels(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) *util.StrSet {
 	channels := util.NewStrSet(0)
 	for _, entry := range cfg.Entries {
 		f, err := ctrl.filterEntry(ctx, entry, cfg, payload, labels)
@@ -133,20 +130,20 @@ func (ctrl *Controller) listTargetChannels(ctx context.Context, cfg *config.Conf
 			channels.Append(entry.Channels...)
 		}
 	}
-	return channels, nil
+	return channels
 }
 
 func (ctrl *Controller) filterEntry(ctx context.Context, entry *config.Entry, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) (bool, error) {
-	return ctrl.entryFilter.Filter(ctx, entry, cfg, payload, labels)
+	return ctrl.entryFilter.Filter(ctx, entry, cfg, payload, labels) //nolint:wrapcheck
 }
 
-func (ctrl *Controller) listAllChannels(ctx context.Context, cfg *config.Config) (map[string]string, error) {
+func (ctrl *Controller) listAllChannels(ctx context.Context, cfg *config.Config) (map[string]string, error) { //nolint:unparam
 	return cfg.Channels, nil
 }
 
 func (ctrl *Controller) notify(ctx context.Context, slackChannel string, opts ...slack.MsgOption) error {
 	_, _, err := ctrl.slack.PostMessageContext(ctx, slackChannel, opts...)
-	return err
+	return fmt.Errorf("post a message to Slack: %w", err)
 }
 
 func (ctrl *Controller) notifyChannels(ctx context.Context, slackChannels *util.StrSet, opts ...slack.MsgOption) error {

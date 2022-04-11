@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -37,11 +38,11 @@ func NewReader() Reader {
 func (reader *configReader) Read(p string, cfg *Config) error {
 	f, err := os.Open(p)
 	if err != nil {
-		return err
+		return fmt.Errorf("open a configuration file %s: %w", p, err)
 	}
 	defer f.Close()
 	if err := yaml.NewDecoder(f).Decode(cfg); err != nil {
-		return err
+		return fmt.Errorf("parse a configuration file as YAML %s: %w", p, err)
 	}
 	return nil
 }

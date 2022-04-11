@@ -28,7 +28,7 @@ func (filter *entryFilter) Filter(ctx context.Context, entry *config.Entry, cfg 
 	for _, flt := range filter.filters {
 		f, err := flt.Filter(ctx, entry, cfg, payload, labels)
 		if err != nil {
-			return false, err
+			return false, err //nolint:wrapcheck
 		}
 		if !f {
 			return false, nil

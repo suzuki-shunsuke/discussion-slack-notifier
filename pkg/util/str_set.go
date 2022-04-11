@@ -50,7 +50,7 @@ func (set *StrSet) Map() map[string]struct{} {
 }
 
 func (set *StrSet) List() []string {
-	arr := make([]string, len(set.m))
+	arr := make([]string, 0, len(set.m))
 	for k := range set.m {
 		arr = append(arr, k)
 	}
