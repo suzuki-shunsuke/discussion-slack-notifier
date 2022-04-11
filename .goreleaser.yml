@@ -1,0 +1,20 @@
+---
+project_name: discussion-slack-notifier
+archives:
+- name_template: "{{.ProjectName}}_{{.Os}}_{{.Arch}}"
+builds:
+- binary: discussion-slack-notifier
+  main: cmd/discussion-slack-notifier/main.go
+  env:
+  - CGO_ENABLED=0
+  goos:
+  - darwin
+  - linux
+  goarch:
+  - amd64
+  - arm
+  - arm64
+release:
+  prerelease: true
+  header: |
+    [Pull Requests](https://github.com/suzuki-shunsuke/discussion-slack-notifier/pulls?q=is%3Apr+is%3Aclosed+milestone%3A{{.Tag}}) | [Issues](https://github.com/suzuki-shunsuke/discussion-slack-notifier/issues?q=is%3Aissue+milestone%3A{{.Tag}}) | https://github.com/suzuki-shunsuke/discussion-slack-notifier/compare/{{.PreviousTag}}...{{.Tag}}
