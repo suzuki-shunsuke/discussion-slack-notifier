@@ -41,6 +41,10 @@ Please create a Slack App.
 
 Please set up GitHub Actions Workflow to run discussion-slack-notifier.
 
+1. Add GitHub Actions Secret `SLACK_TOKEN`
+1. Add configuration file [discussion-slack-notifier.yaml](discussion-slack-notifier.yaml)
+1. Add GitHub Actions workflow. e.g. [notify-discuss.yaml](.github/workflows/notify-discuss.yaml)
+
 ## GitHub Token's permission
 
 GitHub Token is required to list Discussion's labels.

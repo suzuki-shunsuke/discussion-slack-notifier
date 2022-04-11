@@ -3,8 +3,10 @@
 # https://aquaproj.github.io/
 registries:
 - type: standard
-  ref: v2.2.0 # renovate: depName=aquaproj/aqua-registry
+  # TODO update ref when aqua-registry v2.3.0 will be released
+  ref: bd280bffb9e839fc01ddbc5ef895b792f752d896 # renovate: depName=aquaproj/aqua-registry
 packages:
 - name: rhysd/actionlint@v1.6.11
 - name: reviewdog/reviewdog@v0.14.0
 - name: golangci/golangci-lint@v1.45.2
+- name: suzuki-shunsuke/discussion-slack-notifier@v0.1.0-1
