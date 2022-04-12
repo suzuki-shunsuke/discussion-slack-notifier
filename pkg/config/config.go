@@ -8,16 +8,21 @@ import (
 )
 
 type Config struct {
-	Entries  []*Entry
-	Channels map[string]string // channel name -> channel id
+	Entries   []*Entry
+	Channels  map[string]string // channel name -> channel id
+	Templates map[string]string
+	Vars      map[string]interface{}
 }
 
 type Entry struct {
-	Labels     []string
-	Categories []string
-	Texts      []string
-	Channels   []string
-	Events     []*Event
+	Labels       []string
+	Categories   []string
+	Texts        []string
+	Channels     []string
+	Events       []*Event
+	Template     string
+	TemplateName string `yaml:"template_name"`
+	Vars         map[string]interface{}
 }
 
 type Event struct {

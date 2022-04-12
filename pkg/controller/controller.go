@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/go-github/v43/github"
 	"github.com/sirupsen/logrus"
@@ -12,6 +13,7 @@ import (
 	filter "github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/entry-filter"
 	gh "github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/github"
 	"github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/input"
+	"github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/template"
 	"github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/util"
 )
 
@@ -63,52 +65,77 @@ func (ctrl *Controller) Run(ctx context.Context, param *input.Param) error {
 		return err
 	}
 
-	slackChannelNames := ctrl.listTargetChannels(ctx, cfg, payload, labels)
+	entries := ctrl.listTargetEntries(ctx, cfg, payload, labels)
 
-	if slackChannelNames.Len() == 0 {
+	if len(entries) == 0 {
 		logrus.Info("No notification is sent")
 		return nil
 	}
-	logrus.WithField("channels", slackChannelNames.String()).Info("notified channels")
+	logrus.WithField("channels", strings.Join(getChannelNamesFromEntries(entries), ", ")).Info("notified channels")
 
 	chMap, err := ctrl.listAllChannels(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	channelIDs := ctrl.listChannelIDs(slackChannelNames, chMap)
-	msg, err := ctrl.getMessage(payload)
-	if err != nil {
-		return err
-	}
-	if err := ctrl.notifyChannels(ctx, channelIDs, slack.MsgOptionText(msg, false)); err != nil {
-		return err
-	}
-	return nil
+
+	return ctrl.notifies(ctx, cfg, payload, entries, chMap)
 }
 
-func (ctrl *Controller) getMessage(payload *github.DiscussionEvent) (string, error) { //nolint:unparam
-	discussion := payload.GetDiscussion()
-	txt := fmt.Sprintf(`# %s
+func getChannelNamesFromEntries(entries map[string]*config.Entry) []string {
+	chNames := make([]string, 0, len(entries))
+	for k := range entries {
+		chNames = append(chNames, k)
+	}
+	return chNames
+}
 
-Category: %s`, discussion.GetTitle(), discussion.GetDiscussionCategory().GetName())
+const defaultMessageTemplate = `# {{.Title}}
+
+Category: {{.CategoryName}}`
+
+func (ctrl *Controller) getMessageTemplate(payload *github.DiscussionEvent, cfg *config.Config, entry *config.Entry) (string, error) { //nolint:unparam
+	if entry.Template != "" {
+		return entry.Template, nil
+	}
+	if cfg.Templates == nil {
+		return defaultMessageTemplate, nil
+	}
+	if entry.TemplateName != "" {
+		tpl, ok := cfg.Templates[entry.TemplateName]
+		if !ok {
+			return "", errors.New("template isn't found: " + entry.TemplateName)
+		}
+		return tpl, nil
+	}
+	tpl, ok := cfg.Templates["default"]
+	if ok {
+		return tpl, nil
+	}
+	return defaultMessageTemplate, nil
+}
+
+func (ctrl *Controller) getMessage(payload *github.DiscussionEvent, cfg *config.Config, entry *config.Entry) (string, error) {
+	t, err := ctrl.getMessageTemplate(payload, cfg, entry)
+	if err != nil {
+		return "", err
+	}
+	tpl, err := template.Parse(t)
+	if err != nil {
+		return "", fmt.Errorf("parse a message template: %w", err)
+	}
+	discussion := payload.GetDiscussion()
+	txt, err := template.Execute(tpl, map[string]interface{}{
+		"Title":        discussion.GetTitle(),
+		"CategoryName": discussion.GetDiscussionCategory().GetName(),
+	})
+	if err != nil {
+		return "", fmt.Errorf("render a message template: %w", err)
+	}
 	return txt, nil
 }
 
 func (ctrl *Controller) readConfig(p string, cfg *config.Config) error {
 	return ctrl.cfgReader.Read(p, cfg) //nolint:wrapcheck
-}
-
-func (ctrl *Controller) listChannelIDs(chNames *util.StrSet, chMap map[string]string) *util.StrSet {
-	channelIDs := util.NewStrSet(chNames.Len())
-	for channelName := range chNames.Map() {
-		chID, ok := chMap[channelName]
-		if !ok {
-			// channelName is invalid
-			continue
-		}
-		channelIDs.Add(chID)
-	}
-	return channelIDs
 }
 
 func (ctrl *Controller) readPayload(p string, payload *github.DiscussionEvent) error {
@@ -119,18 +146,22 @@ func (ctrl *Controller) listLabels(ctx context.Context, owner, repo string, disc
 	return ctrl.github.ListDiscussionLabels(ctx, owner, repo, discussID) //nolint:wrapcheck
 }
 
-func (ctrl *Controller) listTargetChannels(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) *util.StrSet {
-	channels := util.NewStrSet(0)
+func (ctrl *Controller) listTargetEntries(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) map[string]*config.Entry {
+	entries := map[string]*config.Entry{}
 	for _, entry := range cfg.Entries {
 		f, err := ctrl.filterEntry(ctx, entry, cfg, payload, labels)
 		if err != nil {
 			logrus.WithError(err).Error("filter an entry")
 		}
 		if f {
-			channels.Append(entry.Channels...)
+			for _, ch := range entry.Channels {
+				if _, ok := entries[ch]; !ok {
+					entries[ch] = entry
+				}
+			}
 		}
 	}
-	return channels
+	return entries
 }
 
 func (ctrl *Controller) filterEntry(ctx context.Context, entry *config.Entry, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) (bool, error) {
@@ -149,11 +180,20 @@ func (ctrl *Controller) notify(ctx context.Context, slackChannel string, opts ..
 	return nil
 }
 
-func (ctrl *Controller) notifyChannels(ctx context.Context, slackChannels *util.StrSet, opts ...slack.MsgOption) error {
+func (ctrl *Controller) notifies(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, entries map[string]*config.Entry, chMap map[string]string) error {
 	var oneErr error
-	for slackChannel := range slackChannels.Map() {
-		// notify to slack
-		if err := ctrl.notify(ctx, slackChannel, opts...); err != nil {
+	for chName, entry := range entries {
+		chID, ok := chMap[chName]
+		if !ok {
+			logrus.WithField("channel_name", chName).Error("the channel isn't found")
+			continue
+		}
+		msg, err := ctrl.getMessage(payload, cfg, entry)
+		if err != nil {
+			logrus.WithField("channel_name", chName).WithError(err).Error("get the message")
+			continue
+		}
+		if err := ctrl.notify(ctx, chID, slack.MsgOptionText(msg, false)); err != nil {
 			oneErr = err
 			logrus.WithError(err).Error("notify to slack")
 		}

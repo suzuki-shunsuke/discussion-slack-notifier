@@ -9,6 +9,8 @@ entries:
   - back-office
 - channels: # always
   - general
+  template: |
+    # {{.Title}}
 channels:
   back-office: C03B00QDGH3
   general: C0HKBAA0J
