@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/go-github/v43/github"
 	"github.com/sirupsen/logrus"
@@ -63,52 +64,32 @@ func (ctrl *Controller) Run(ctx context.Context, param *input.Param) error {
 		return err
 	}
 
-	slackChannelNames := ctrl.listTargetChannels(ctx, cfg, payload, labels)
+	entries := ctrl.listTargetEntries(ctx, cfg, payload, labels)
 
-	if slackChannelNames.Len() == 0 {
+	if len(entries) == 0 {
 		logrus.Info("No notification is sent")
 		return nil
 	}
-	logrus.WithField("channels", slackChannelNames.String()).Info("notified channels")
+	logrus.WithField("channels", strings.Join(getChannelNamesFromEntries(entries), ", ")).Info("notified channels")
 
 	chMap, err := ctrl.listAllChannels(ctx, cfg)
 	if err != nil {
 		return err
 	}
-	channelIDs := ctrl.listChannelIDs(slackChannelNames, chMap)
-	msg, err := ctrl.getMessage(payload)
-	if err != nil {
-		return err
-	}
-	if err := ctrl.notifyChannels(ctx, channelIDs, slack.MsgOptionText(msg, false)); err != nil {
-		return err
-	}
-	return nil
+
+	return ctrl.notifies(ctx, cfg, payload, entries, chMap)
 }
 
-func (ctrl *Controller) getMessage(payload *github.DiscussionEvent) (string, error) { //nolint:unparam
-	discussion := payload.GetDiscussion()
-	txt := fmt.Sprintf(`# %s
-
-Category: %s`, discussion.GetTitle(), discussion.GetDiscussionCategory().GetName())
-	return txt, nil
+func getChannelNamesFromEntries(entries map[string]*config.Entry) []string {
+	chNames := make([]string, 0, len(entries))
+	for k := range entries {
+		chNames = append(chNames, k)
+	}
+	return chNames
 }
 
 func (ctrl *Controller) readConfig(p string, cfg *config.Config) error {
 	return ctrl.cfgReader.Read(p, cfg) //nolint:wrapcheck
-}
-
-func (ctrl *Controller) listChannelIDs(chNames *util.StrSet, chMap map[string]string) *util.StrSet {
-	channelIDs := util.NewStrSet(chNames.Len())
-	for channelName := range chNames.Map() {
-		chID, ok := chMap[channelName]
-		if !ok {
-			// channelName is invalid
-			continue
-		}
-		channelIDs.Add(chID)
-	}
-	return channelIDs
 }
 
 func (ctrl *Controller) readPayload(p string, payload *github.DiscussionEvent) error {
@@ -117,24 +98,6 @@ func (ctrl *Controller) readPayload(p string, payload *github.DiscussionEvent) e
 
 func (ctrl *Controller) listLabels(ctx context.Context, owner, repo string, discussID int) (*util.StrSet, error) {
 	return ctrl.github.ListDiscussionLabels(ctx, owner, repo, discussID) //nolint:wrapcheck
-}
-
-func (ctrl *Controller) listTargetChannels(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) *util.StrSet {
-	channels := util.NewStrSet(0)
-	for _, entry := range cfg.Entries {
-		f, err := ctrl.filterEntry(ctx, entry, cfg, payload, labels)
-		if err != nil {
-			logrus.WithError(err).Error("filter an entry")
-		}
-		if f {
-			channels.Append(entry.Channels...)
-		}
-	}
-	return channels
-}
-
-func (ctrl *Controller) filterEntry(ctx context.Context, entry *config.Entry, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) (bool, error) {
-	return ctrl.entryFilter.Filter(ctx, entry, cfg, payload, labels) //nolint:wrapcheck
 }
 
 func (ctrl *Controller) listAllChannels(ctx context.Context, cfg *config.Config) (map[string]string, error) { //nolint:unparam
@@ -149,11 +112,20 @@ func (ctrl *Controller) notify(ctx context.Context, slackChannel string, opts ..
 	return nil
 }
 
-func (ctrl *Controller) notifyChannels(ctx context.Context, slackChannels *util.StrSet, opts ...slack.MsgOption) error {
+func (ctrl *Controller) notifies(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, entries map[string]*config.Entry, chMap map[string]string) error {
 	var oneErr error
-	for slackChannel := range slackChannels.Map() {
-		// notify to slack
-		if err := ctrl.notify(ctx, slackChannel, opts...); err != nil {
+	for chName, entry := range entries {
+		chID, ok := chMap[chName]
+		if !ok {
+			logrus.WithField("channel_name", chName).Error("the channel isn't found")
+			continue
+		}
+		msg, err := ctrl.getMessage(payload, cfg, entry)
+		if err != nil {
+			logrus.WithField("channel_name", chName).WithError(err).Error("get the message")
+			continue
+		}
+		if err := ctrl.notify(ctx, chID, slack.MsgOptionText(msg, false)); err != nil {
 			oneErr = err
 			logrus.WithError(err).Error("notify to slack")
 		}

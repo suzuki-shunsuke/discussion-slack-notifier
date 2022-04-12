@@ -62,6 +62,25 @@ You can use GitHub Actions' token `github.token`.
 
 e.g. [discussion-slack-notifier.yaml](discussion-slack-notifier.yaml)
 
+### Templates
+
+You can customize notification message.
+
+* [Go's text/template](https://pkg.go.dev/text/template)
+* http://masterminds.github.io/sprig/
+
+#### Template Priority
+
+1. entry's `template`
+1. entry's `template_name`
+1. `templates`'s `default` template
+1. Built in default template
+
+#### Template Variables
+
+* Title: Discussion title
+* CategoryName: Discussion Category Name
+
 ## LICENSE
 
 [MIT](LICENSE)
