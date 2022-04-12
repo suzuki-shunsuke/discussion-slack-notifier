@@ -60,19 +60,7 @@ You can use GitHub Actions' token `github.token`.
 
 ## Configuration
 
-e.g.
-
-```yaml
-entries:
-- labels:
-  - foo
-  channels:
-  - general
-channels:
-  general: XXXXXXXXX
-```
-
-In case of above configuration, if the Discussion Label `foo` is set, the notification is sent to the slack channel `general`.
+e.g. [discussion-slack-notifier.yaml](discussion-slack-notifier.yaml)
 
 ## LICENSE
 
