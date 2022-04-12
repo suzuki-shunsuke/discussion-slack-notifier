@@ -1,16 +1,30 @@
+templates:
+  default: |
+    # {{.Title}}
+    
+    Category: {{.CategoryName}}
+
+    default message
+  sre: |
+    # {{.Title}}
+
+    SRE template
 entries:
 - labels:
   - sre
   channels:
   - sre
+  template_name: sre
 - labels:
   - Back Office
   channels:
   - back-office
-- channels: # always
-  - general
   template: |
     # {{.Title}}
+
+    Back Office
+- channels: # always
+  - general
 channels:
   back-office: C03B00QDGH3
   general: C0HKBAA0J
