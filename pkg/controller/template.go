@@ -34,6 +34,14 @@ func (ctrl *Controller) getMessageTemplate(payload *github.DiscussionEvent, cfg 
 	return defaultMessageTemplate, nil
 }
 
+func getTemplateParam(payload *github.DiscussionEvent, cfg *config.Config, entry *config.Entry) interface{} {
+	discussion := payload.GetDiscussion()
+	return map[string]interface{}{
+		"Title":        discussion.GetTitle(),
+		"CategoryName": discussion.GetDiscussionCategory().GetName(),
+	}
+}
+
 func (ctrl *Controller) getMessage(payload *github.DiscussionEvent, cfg *config.Config, entry *config.Entry) (string, error) {
 	t, err := ctrl.getMessageTemplate(payload, cfg, entry)
 	if err != nil {
@@ -43,11 +51,7 @@ func (ctrl *Controller) getMessage(payload *github.DiscussionEvent, cfg *config.
 	if err != nil {
 		return "", fmt.Errorf("parse a message template: %w", err)
 	}
-	discussion := payload.GetDiscussion()
-	txt, err := template.Execute(tpl, map[string]interface{}{
-		"Title":        discussion.GetTitle(),
-		"CategoryName": discussion.GetDiscussionCategory().GetName(),
-	})
+	txt, err := template.Execute(tpl, getTemplateParam(payload, cfg, entry))
 	if err != nil {
 		return "", fmt.Errorf("render a message template: %w", err)
 	}
