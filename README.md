@@ -78,8 +78,9 @@ You can customize notification message.
 
 #### Template Variables
 
-* Title: Discussion title
-* CategoryName: Discussion Category Name
+* Title (string): Discussion title
+* CategoryName (string): Discussion Category Name
+* Vars (map[string]interface{}): user defined variables
 
 ## LICENSE
 

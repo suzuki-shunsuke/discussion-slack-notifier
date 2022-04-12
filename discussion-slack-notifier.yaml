@@ -1,8 +1,12 @@
+vars:
+  foo: foo
 templates:
   default: |
     # {{.Title}}
     
     Category: {{.CategoryName}}
+
+    {{.Vars.foo}}
 
     default message
   sre: |
@@ -19,10 +23,12 @@ entries:
   - Back Office
   channels:
   - back-office
+  vars:
+    name: Back Office
   template: |
     # {{.Title}}
 
-    Back Office
+    {{.Vars.name}}
 - channels: # always
   - general
 channels:
