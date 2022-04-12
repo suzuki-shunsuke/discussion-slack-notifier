@@ -1,7 +1,15 @@
 entries:
 - labels:
-  - foo
+  - sre
   channels:
+  - sre
+- labels:
+  - Back Office
+  channels:
+  - back-office
+- channels: # always
   - general
 channels:
+  back-office: C03B00QDGH3
   general: C0HKBAA0J
+  sre: C03AW7594KG
