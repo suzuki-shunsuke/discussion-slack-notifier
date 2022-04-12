@@ -35,10 +35,19 @@ func (ctrl *Controller) getMessageTemplate(payload *github.DiscussionEvent, cfg 
 }
 
 func getTemplateParam(payload *github.DiscussionEvent, cfg *config.Config, entry *config.Entry) interface{} {
+	vars := make(map[string]interface{}, len(cfg.Vars))
+	for k, v := range cfg.Vars {
+		vars[k] = v
+	}
+	for k, v := range entry.Vars {
+		vars[k] = v
+	}
+
 	discussion := payload.GetDiscussion()
 	return map[string]interface{}{
 		"Title":        discussion.GetTitle(),
 		"CategoryName": discussion.GetDiscussionCategory().GetName(),
+		"Vars":         vars,
 	}
 }
 
