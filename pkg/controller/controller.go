@@ -13,7 +13,6 @@ import (
 	filter "github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/entry-filter"
 	gh "github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/github"
 	"github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/input"
-	"github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/template"
 	"github.com/suzuki-shunsuke/discussion-slack-notifier/pkg/util"
 )
 
@@ -89,51 +88,6 @@ func getChannelNamesFromEntries(entries map[string]*config.Entry) []string {
 	return chNames
 }
 
-const defaultMessageTemplate = `# {{.Title}}
-
-Category: {{.CategoryName}}`
-
-func (ctrl *Controller) getMessageTemplate(payload *github.DiscussionEvent, cfg *config.Config, entry *config.Entry) (string, error) { //nolint:unparam
-	if entry.Template != "" {
-		return entry.Template, nil
-	}
-	if cfg.Templates == nil {
-		return defaultMessageTemplate, nil
-	}
-	if entry.TemplateName != "" {
-		tpl, ok := cfg.Templates[entry.TemplateName]
-		if !ok {
-			return "", errors.New("template isn't found: " + entry.TemplateName)
-		}
-		return tpl, nil
-	}
-	tpl, ok := cfg.Templates["default"]
-	if ok {
-		return tpl, nil
-	}
-	return defaultMessageTemplate, nil
-}
-
-func (ctrl *Controller) getMessage(payload *github.DiscussionEvent, cfg *config.Config, entry *config.Entry) (string, error) {
-	t, err := ctrl.getMessageTemplate(payload, cfg, entry)
-	if err != nil {
-		return "", err
-	}
-	tpl, err := template.Parse(t)
-	if err != nil {
-		return "", fmt.Errorf("parse a message template: %w", err)
-	}
-	discussion := payload.GetDiscussion()
-	txt, err := template.Execute(tpl, map[string]interface{}{
-		"Title":        discussion.GetTitle(),
-		"CategoryName": discussion.GetDiscussionCategory().GetName(),
-	})
-	if err != nil {
-		return "", fmt.Errorf("render a message template: %w", err)
-	}
-	return txt, nil
-}
-
 func (ctrl *Controller) readConfig(p string, cfg *config.Config) error {
 	return ctrl.cfgReader.Read(p, cfg) //nolint:wrapcheck
 }
@@ -144,28 +98,6 @@ func (ctrl *Controller) readPayload(p string, payload *github.DiscussionEvent) e
 
 func (ctrl *Controller) listLabels(ctx context.Context, owner, repo string, discussID int) (*util.StrSet, error) {
 	return ctrl.github.ListDiscussionLabels(ctx, owner, repo, discussID) //nolint:wrapcheck
-}
-
-func (ctrl *Controller) listTargetEntries(ctx context.Context, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) map[string]*config.Entry {
-	entries := map[string]*config.Entry{}
-	for _, entry := range cfg.Entries {
-		f, err := ctrl.filterEntry(ctx, entry, cfg, payload, labels)
-		if err != nil {
-			logrus.WithError(err).Error("filter an entry")
-		}
-		if f {
-			for _, ch := range entry.Channels {
-				if _, ok := entries[ch]; !ok {
-					entries[ch] = entry
-				}
-			}
-		}
-	}
-	return entries
-}
-
-func (ctrl *Controller) filterEntry(ctx context.Context, entry *config.Entry, cfg *config.Config, payload *github.DiscussionEvent, labels *util.StrSet) (bool, error) {
-	return ctrl.entryFilter.Filter(ctx, entry, cfg, payload, labels) //nolint:wrapcheck
 }
 
 func (ctrl *Controller) listAllChannels(ctx context.Context, cfg *config.Config) (map[string]string, error) { //nolint:unparam
