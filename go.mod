@@ -7,7 +7,7 @@ require (
 	github.com/google/go-github/v43 v43.0.0
 	github.com/google/wire v0.5.0
 	github.com/shurcooL/githubv4 v0.0.0-20220115235240-a14260e6f8a2
-	github.com/sirupsen/logrus v1.8.1
+	github.com/sirupsen/logrus v1.9.0
 	github.com/slack-go/slack v0.11.0
 	github.com/suzuki-shunsuke/logrus-error v0.1.4
 	golang.org/x/oauth2 v0.0.0-20220309155454-6242fa91716a
@@ -30,7 +30,7 @@ require (
 	github.com/spf13/cast v1.3.1 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
-	golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 )
